@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torchvision
+import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 import torch.nn as nn
@@ -11,6 +12,7 @@ import os
 import matplotlib.pyplot as plt
 from PIL import Image
 from random import randint
+from torchsummary import summary
 
 EPOCH = 15
 # labels = ['buildings', 'forest', 'glacier', 'mountain','sea', 'street']
@@ -122,20 +124,11 @@ pred_loader = DataLoader(pred_dataset, shuffle=True, num_workers=0)
 class Net(nn.Module):
     def __init__(self):
         super().__init__()
-        # Conv2d Применяет двумерную свёртку к входному сигналу, состоящему из нескольких входных плоскостей.
-        # Параметры: 3 - Количество каналов во входном изображении, 6 - количество каналов, создаваемых свёрткой,
-        # 5 - размер ядра свёртки
         self.conv1 = nn.Conv2d(3, 32, 5)
-
-        # MaxPool2 Применяет 2D-объединение по максимуму к входному сигналу, состоящему из нескольких входных
-        # плоскостей. # Параметры: kernel_size (Union[int, Tuple[int, int]]) — размер окна для вычисления максимума,
-        # stride (Union[int, Tuple[int, int]]) –  шаг окна. Значение по умолчанию — kernel_size
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(32, 64, 5)
-        # Применяет аффинное линейное преобразование к входящим данным: y=xA^T+b. # Параметры in_features (int) – размер
-        # каждой входной выборки, out_features (int) – размер каждой выходной выборки,смещение (bool) — если установлено
-        # значение False, слой не будет обучаться с учётом смещения. По умолчанию: True
-        self.fc1 = nn.Linear(64 * 289 * 4, 1200)
+       # self.conv3 = nn.Conv2d(64, 128, 4)
+        self.fc1 = nn.Linear(64 * 34 * 34, 1200)
         self.fc2 = nn.Linear(1200, 1200)
         self.fc3 = nn.Linear(1200, 1200)
         self.fc4 = nn.Linear(1200, 6)
@@ -143,24 +136,19 @@ class Net(nn.Module):
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
+        #x = self.pool(F.relu(self.conv3(x)))
         x = torch.flatten(x, 1)  # flatten all dimensions except batch
-        x = x.view(-1, 64 * 289 * 4)  # изменить shape тензора
+        x = x.view(-1, 64 * 34 * 34)  # изменить shape тензора
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
         x = self.fc4(x)
         return x
 
-
 # ИНИЦИАЛИЗАЦИЯ МОДЕЛИ
-net = Net()
-# Оптимизатор PyTorch нужен для того, чтобы помочь в процессе обучения модели машинного обучения. Он регулирует
-# параметры модели во время обучения, чтобы минимизировать ошибку между предсказанным и фактическим выходом. Оптимизатор
-# использует математический алгоритм для определения лучших настроек регулировки параметров. Этот алгоритм основан на
-# ошибке и градиентах (показателе направления наиболее резкого увеличения или уменьшения) функции потерь по отношению к
-# параметрам.
-import torch.optim as optim
 
+net = Net()
+print(summary(net,(3, 150, 150)))
 criterion = nn.CrossEntropyLoss()  #  это функция для вычисления кросс-энтропийных потерь между входным и целевым
 # значением в библиотеке PyTorch
 optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9)  # lr=0.001
@@ -173,7 +161,7 @@ for epoch in range(EPOCH):  # loop over the dataset multiple times
         optimizer.zero_grad()  # Сбрасывает градиенты всех оптимизированных тензоров
         outputs = net(inputs)
         loss = criterion(outputs, labels)
-        loss.backward()  # вычисления градиентов с помощью, например, backward()
+        loss.backward()  # вычисления градиентов с помощью backward()
         optimizer.step()  # Все оптимизаторы реализуют метод step() для обновления параметров.
 
         # print statistics
@@ -202,36 +190,26 @@ def imshow(img):
 
 # --------------------------------------------------------------------------------------------------
 # ВАЛИДАЦИЯ МОДЕЛИ (ПРОВЕРКА НА ВАЛИДАЦИОННЫХ РАЗМЕЧЕННЫХ ДАННЫХ)
-correct = 0
-total = 0
+
 
 # поскольку мы не тренируемся, нам не нужно вычислять градиенты для наших выходных данных
 with torch.no_grad():
-    # torch.no_grad() — это контекстный менеджер в PyTorch, который отключает вычисление градиентов.
-    # Он полезен на этапах оценки или тестирования модели, когда не нужно вычислять градиенты, что
-    # экономит память и вычислительные ресурсы.
     list_predict = []
     list_labels = []
 
     for data in val_loader:
         images, labels = data
-        # вычисляйте выходные данные, прогоняя изображения по сети
         outputs = net(images)
-        # класс с самой высокой энергией - это то, что мы выбираем в качестве прогноза
-        _, predicted = torch.max(outputs, 1)  # predicted - tensor, в котором предсказанные индексы классов
-        # predicted, label - тензоры с одним измерением( [., ., ...] )
+        _, predicted = torch.max(outputs, 1)
 
         list_predict.extend(predicted)
         list_labels.extend(labels)
-        correct += (predicted == labels).sum().item()
-        total += labels.size(0)
 
     print(f'ACCURACY IS {100 * accuracy_score(list_labels, list_predict):.2f} %')
     print(f'RECALL  IS {100 * recall_score(list_labels, list_predict, average="weighted"):.2f} %')
     print(f'PRECISION IS {100 * precision_score(list_labels, list_predict, average="weighted"):.2f} %')
     print(f'F1 score  IS {100 * f1_score(list_labels, list_predict, average="weighted"):.2f} %')
-    accuracy = 100 * correct / total
-    print(f'REAL ACCURACY is {accuracy:.2f}')
+
 
 # приготовьтесь подсчитывать прогнозы для каждого класса
 correct_pred = {classname: 0 for classname in categories}  # словарная сборка

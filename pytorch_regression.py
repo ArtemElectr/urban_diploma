@@ -9,7 +9,6 @@ import torch.nn.functional as F
 
 
 df = pd.read_csv(r'F:\urban_diploma\pythonProject\data_regression\financial_regression.csv')
-# Преобразование данных
 df = df.drop(df[df['gold_close'].isna()].index)
 df = df['gold_close'].values.astype(float)
 scaler = MinMaxScaler(feature_range=(0, 1))
@@ -27,17 +26,12 @@ def create_dataset(data, time_step=1):
 
 
 time_step = 5
-X, y = create_dataset(data_normalized, time_step)   # shape X : (3898, 5), shape y: (3898,) 3898 одномерных массивов по
-                                                    # 5(1) элементу в массиве  X shape = [[.....][.....][.....]]
-
-# Разделение на обучающие и тестовые данные
+X, y = create_dataset(data_normalized, time_step)
 train_size = int(len(X) * 0.8)  # 0.8 от кол.-ва элементов в Х
-
 test_size = len(X) - train_size  # 0.2 от кол.-ва элементов в Х
 X_train, X_test = X[0:train_size], X[train_size:]  # разделение массивов
 y_train, y_test = y[0:train_size], y[train_size:]
 
-# Convert data to PyTorch tensors
 X_train_ts = torch.from_numpy(X_train.astype(np.float32))
 y_train_ts = torch.from_numpy(y_train.astype(np.float32)).view(-1, 1)
 x_test_ts = torch.from_numpy(X_test.astype(np.float32))
@@ -63,8 +57,6 @@ output_size = 1
 learning_rate = 0.01
 num_epochs = 1000
 
-# Instantiate the model, loss function, and optimizer
-print(input_size, ' ', output_size)
 model = LinearRegressionModel(input_size, output_size)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=2e-5)#SGD(model.parameters(), lr=learning_rate)
@@ -73,10 +65,8 @@ optimizer = torch.optim.Adam(model.parameters(), lr=2e-5)#SGD(model.parameters()
 for epoch in range(num_epochs):
     # Forward pass
     y_predicted = model(X_train_ts)
-
     # Compute loss
     loss = criterion(y_predicted, y_train_ts)
-
     # Backward pass and optimization
     optimizer.zero_grad()
     loss.backward()
@@ -86,17 +76,16 @@ for epoch in range(num_epochs):
     if (epoch + 1) % 10 == 0:
         print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
 
-
 # Evaluation
 with torch.no_grad():
     train_pred = model(X_train_ts).detach().numpy()
     test_pred = model(x_test_ts).detach().numpy()
 
 # Calculate Mean Squared Error
-mse = mean_squared_error(y_test, test_pred)
-mae = mean_absolute_error(y_test, test_pred)
-print("Mean Squared Error: %.4f" % mse)
-print("Mean Absolute Error: %.4f" % mae)
+    mse = mean_squared_error(y_test, test_pred)
+    mae = mean_absolute_error(y_test, test_pred)
+    print("Mean Squared Error: %.5f" % mse)
+    print("Mean Absolute Error: %.5f" % mae)
 
 
 # # Обратное преобразование предсказанных значений к исходной шкале

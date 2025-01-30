@@ -42,8 +42,8 @@ model.fit(X_train, y_train)
 # ВАЛИДАЦИЯ МОДЕЛИ
 x_pred = model.predict(X_train)
 y_pred = model.predict(X_test)
-print("Mean Squared Error: ", mean_squared_error(y_test, y_pred))
-print(f'Mean Absolute Error: {mean_absolute_error(y_test, y_pred)}')
+print(f"Mean Squared Error: {mean_squared_error(y_test, y_pred):.5f}")
+print(f'Mean Absolute Error: {mean_absolute_error(y_test, y_pred):.5f}')
 
 # # Обратное преобразование предсказанных значений к исходной шкале
 test_predict = np.reshape(y_pred,(-1,1))
